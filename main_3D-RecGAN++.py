@@ -4,6 +4,7 @@ import numpy as np
 import scipy.io
 import tensorflow as tf
 import tools
+from metric import sparse_ml
 
 vox_res64 = 64
 vox_rex256 = 256
@@ -154,6 +155,7 @@ class Network:
         self.X = tf.placeholder(shape=[None, vox_res64, vox_res64, vox_res64, 1], dtype=tf.float32)
         self.Y = tf.placeholder(shape=[None, vox_rex256, vox_rex256, vox_rex256, 1], dtype=tf.float32)
         self.label = tf.placeholder(shape=[None], dtype=tf.int32)
+        self.nebula3d = tf.Variable(tf.truncated_normal([4, 2000]), 'nebula3d')
 
         with tf.variable_scope('aeu'):
             self.Y_pred, self.Y_pred_modi, self.codes = self.aeu(self.X)
@@ -163,6 +165,24 @@ class Network:
             self.XY_fake_pair = self.dis(self.X, self.Y_pred)
 
         with tf.device('/gpu:'+GPU0):
+            ################################ embedding loss
+            loss_0d, loss_1d, loss_2d, loss_3d, _, _, self.nebula3d = sparse_ml(4, 2000, self.nebula3d, self.codes, self.label, info_type='scalar')
+            metric = True
+            order = 1
+            if metric is True:
+                # unsupervised learning
+                self.latent_loss = loss_0d
+                # supervised learning
+                if order is 1:
+                    self.latent_loss += loss_1d
+                elif order is 2:
+                    self.latent_loss += loss_2d
+                elif order is 3:
+                    self.latent_loss += loss_3d
+                elif order is -1:
+                    self.latent_loss += loss_1d
+                    self.latent_loss += loss_2d
+                    self.latent_loss += loss_3d
             ################################ ae loss
             Y_ = tf.reshape(self.Y, shape=[-1, vox_rex256**3])
             Y_pred_modi_ = tf.reshape(self.Y_pred_modi, shape=[-1, vox_rex256**3])
@@ -201,6 +221,8 @@ class Network:
                             minimize(self.aeu_gan_g_loss, var_list=aeu_var)
             self.dis_optim = tf.train.AdamOptimizer(learning_rate=0.00005, beta1=0.9, beta2=0.999, epsilon=1e-8).\
                             minimize(self.gan_d_loss_gp,var_list=dis_var)
+            self.latent_optim = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.9, beta2=0.999, epsilon=1e-8).\
+                            minimize(self.latent_loss)
 
         print (tools.Ops.variable_count())
         self.sum_merged = tf.summary.merge_all()
@@ -234,15 +256,17 @@ class Network:
                 X_train_batch, Y_train_batch, label_train_batch = data.queue_train.get()
                 self.sess.run(self.dis_optim, feed_dict={self.X:X_train_batch, self.Y:Y_train_batch})
                 self.sess.run(self.aeu_g_optim, feed_dict={self.X:X_train_batch, self.Y:Y_train_batch, self.label:label_train_batch})
+                self.sess.run(self.latent_optim, feed_dict={self.X:X_train_batch, self.label:label_train_batch})
 
-                aeu_loss_c, gan_g_loss_c, gan_d_loss_no_gp_c, gan_d_loss_gp_c, sum_train = self.sess.run(
-                [self.aeu_loss, self.gan_g_loss, self.gan_d_loss_no_gp, self.gan_d_loss_gp, self.sum_merged],
-                feed_dict={self.X:X_train_batch, self.Y:Y_train_batch})
+                aeu_loss_c, gan_g_loss_c, gan_d_loss_no_gp_c, gan_d_loss_gp_c, latent_loss_c, sum_train = self.sess.run(
+                [self.aeu_loss, self.gan_g_loss, self.gan_d_loss_no_gp, self.gan_d_loss_gp, self.latent_loss, self.sum_merged],
+                feed_dict={self.X:X_train_batch, self.Y:Y_train_batch, self.label:label_train_batch})
 
                 if i%200==0:
                     self.sum_writer_train.add_summary(sum_train, epoch * total_train_batch_num + i)
                 print ('ep:',epoch,'i:',i, 'train aeu loss:',aeu_loss_c, 'gan g loss:',gan_g_loss_c,
-                       'gan d loss no gp:',gan_d_loss_no_gp_c,'gan d loss gp:', gan_d_loss_gp_c)
+                       'gan d loss no gp:',gan_d_loss_no_gp_c,'gan d loss gp:', gan_d_loss_gp_c,
+                       'latent loss:', latent_loss_c)
 
                 #################### testing
                 if i%600==0:
