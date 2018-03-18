@@ -39,11 +39,13 @@ class Data(threading.Thread):
         self.queue_train = queue.Queue(3)
         self.stop_queue = False
 
-        self.X_train_files, self.Y_train_files = self.load_X_Y_files_paths_all( self.train_names,label='train')
-        self.X_test_files, self.Y_test_files = self.load_X_Y_files_paths_all(self.test_names, label='test')
+        self.X_train_files, self.Y_train_files, self.X_train_labels = self.load_X_Y_files_paths_all( self.train_names,label='train')
+        self.X_test_files, self.Y_test_files, self.X_test_labels = self.load_X_Y_files_paths_all(self.test_names, label='test')
 
         print ('X_train_files:',len(self.X_train_files))
+        print ('X_train_labels:',len(self.X_train_labels))
         print ('X_test_files:',len(self.X_test_files))
+        print ('X_test_labels:',len(self.X_test_labels))
 
         self.total_train_batch_num = int(len(self.X_train_files) // self.batch_size)
         self.total_test_seq_batch = int(len(self.X_test_files) // self.batch_size)
@@ -157,7 +159,8 @@ class Data(threading.Thread):
 
         X_data_files_all = []
         Y_data_files_all = []
-        for name in obj_names:
+        X_data_labels_all = []
+        for idx, name in enumerate(obj_names):
             X_folder = self.config[x_str + name]
             Y_folder = self.config[y_str + name]
             X_data_files = [X_f for X_f in sorted(os.listdir(X_folder))]
@@ -169,7 +172,8 @@ class Data(threading.Thread):
                     exit()
                 X_data_files_all.append(X_folder + X_f)
                 Y_data_files_all.append(Y_folder + Y_f)
-        return X_data_files_all, Y_data_files_all
+                X_data_labels_all.append(idx)
+        return X_data_files_all, Y_data_files_all, X_data_labels_all
 
     def load_X_Y_voxel_grids(self,X_data_files, Y_data_files):
         if len(X_data_files) !=self.batch_size or len(Y_data_files)!=self.batch_size:
@@ -193,16 +197,20 @@ class Data(threading.Thread):
 
     def shuffle_X_Y_files(self, label='train'):
         X_new = []; Y_new = []
+        labels_new = []
         if label == 'train':
             X = self.X_train_files; Y = self.Y_train_files
+            labels = self.X_train_labels
             self.train_batch_index = 0
             index = list(range(len(X)))
             shuffle(index)
             for i in index:
                 X_new.append(X[i])
                 Y_new.append(Y[i])
+                labels_new.append(labels[i])
             self.X_train_files = X_new
             self.Y_train_files = Y_new
+            self.X_train_labels = labels_new
         else:
             print ("shuffle_X_Y_files error!\n")
             exit()
@@ -211,10 +219,11 @@ class Data(threading.Thread):
     def load_X_Y_voxel_grids_train_next_batch(self):
         X_data_files = self.X_train_files[self.batch_size * self.train_batch_index:self.batch_size * (self.train_batch_index + 1)]
         Y_data_files = self.Y_train_files[self.batch_size * self.train_batch_index:self.batch_size * (self.train_batch_index + 1)]
+        X_labels = self.X_train_labels[self.batch_size * self.train_batch_index:self.batch_size * (self.train_batch_index + 1)]
         self.train_batch_index += 1
 
         X_voxel_grids, Y_voxel_grids = self.load_X_Y_voxel_grids(X_data_files, Y_data_files)
-        return X_voxel_grids, Y_voxel_grids
+        return X_voxel_grids, Y_voxel_grids, X_labels
 
     def load_X_Y_voxel_grids_test_next_batch(self,fix_sample=False):
         if fix_sample:
@@ -236,8 +245,8 @@ class Data(threading.Thread):
                 if self.train_batch_index>=self.total_train_batch_num:
                     self.shuffle_X_Y_files(label='train')
                     print ('shuffle')
-                X_b, Y_b = self.load_X_Y_voxel_grids_train_next_batch()
-                self.queue_train.put((X_b, Y_b))
+                X_b, Y_b, label_b = self.load_X_Y_voxel_grids_train_next_batch()
+                self.queue_train.put((X_b, Y_b, label_b))
 
 class Ops:
 

@@ -101,10 +101,10 @@ class Network:
             [_, d1, d2, d3, cc] = layers_e[-1].get_shape()
             d1=int(d1); d2=int(d2); d3=int(d3); cc=int(cc)
             lfc = tf.reshape(layers_e[-1],[-1, int(d1)*int(d2)*int(d3)*int(cc)])
-            lfc = tools.Ops.xxlu(tools.Ops.fc(lfc, out_d=2000,name='fc1'), label='relu')
+            codes = tools.Ops.xxlu(tools.Ops.fc(lfc, out_d=2000,name='fc1'), label='relu')
 
         with tf.device('/gpu:'+GPU0):
-            lfc = tools.Ops.xxlu(tools.Ops.fc(lfc,out_d=d1*d2*d3*cc, name='fc2'), label='relu')
+            lfc = tools.Ops.xxlu(tools.Ops.fc(codes,out_d=d1*d2*d3*cc, name='fc2'), label='relu')
             lfc = tf.reshape(lfc, [-1, d1,d2,d3,cc])
 
             c_d = [0,256,128,64,16,8]
@@ -127,7 +127,7 @@ class Network:
             Y_sig = tf.nn.sigmoid(layer)
             Y_sig_modi = tf.maximum(Y_sig,0.01)
 
-        return Y_sig, Y_sig_modi
+        return Y_sig, Y_sig_modi, codes
 
     def dis(self, X, Y):
         with tf.device('/gpu:'+GPU0):
@@ -153,9 +153,10 @@ class Network:
     def build_graph(self):
         self.X = tf.placeholder(shape=[None, vox_res64, vox_res64, vox_res64, 1], dtype=tf.float32)
         self.Y = tf.placeholder(shape=[None, vox_rex256, vox_rex256, vox_rex256, 1], dtype=tf.float32)
+        self.label = tf.placeholder(shape=[None], dtype=tf.int32)
 
         with tf.variable_scope('aeu'):
-            self.Y_pred, self.Y_pred_modi = self.aeu(self.X)
+            self.Y_pred, self.Y_pred_modi, self.codes = self.aeu(self.X)
         with tf.variable_scope('dis'):
             self.XY_real_pair = self.dis(self.X, self.Y)
         with tf.variable_scope('dis',reuse=True):
@@ -230,9 +231,9 @@ class Network:
             for i in range(total_train_batch_num):
 
                 #################### training
-                X_train_batch, Y_train_batch = data.queue_train.get()
+                X_train_batch, Y_train_batch, label_train_batch = data.queue_train.get()
                 self.sess.run(self.dis_optim, feed_dict={self.X:X_train_batch, self.Y:Y_train_batch})
-                self.sess.run(self.aeu_g_optim, feed_dict={self.X:X_train_batch, self.Y:Y_train_batch})
+                self.sess.run(self.aeu_g_optim, feed_dict={self.X:X_train_batch, self.Y:Y_train_batch, self.label:label_train_batch})
 
                 aeu_loss_c, gan_g_loss_c, gan_d_loss_no_gp_c, gan_d_loss_gp_c, sum_train = self.sess.run(
                 [self.aeu_loss, self.gan_g_loss, self.gan_d_loss_no_gp, self.gan_d_loss_gp, self.sum_merged],
