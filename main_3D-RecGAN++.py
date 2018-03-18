@@ -18,23 +18,23 @@ config['vox_res_x'] = vox_res64
 config['vox_res_y'] = vox_rex256
 config['train_names']=['P1_02828884_bench','P1_03001627_chair','P1_04256520_coach', 'P1_04379243_table']
 for name in config['train_names']:
-    config['X_train_'+name] = './Data_sample/'+name+'/train_25d_vox256/'
-    config['Y_train_'+name] = './Data_sample/'+name+'/train_3d_vox256/'
+    config['X_train_'+name] = '/media/wangyida/D0-P1/database/data_3drecgan++/'+name+'/train_25d_vox256/'
+    config['Y_train_'+name] = '/media/wangyida/D0-P1/database/data_3drecgan++/'+name+'/train_3d_vox256/'
 
 config['test_names']=['P1_02828884_bench','P1_03001627_chair','P1_04256520_coach', 'P1_04379243_table']
 for name in config['test_names']:
-    config['X_test_'+name]= './Data_sample/'+name+'/test_25d_vox256/'
-    config['Y_test_'+name]= './Data_sample/'+name+'/test_3d_vox256/'
+    config['X_test_'+name]= '/media/wangyida/D0-P1/database/data_3drecgan++/'+name+'/test_25d_vox256/'
+    config['Y_test_'+name]= '/media/wangyida/D0-P1/database/data_3drecgan++/'+name+'/test_3d_vox256/'
 #########################
 
 class Network:
     def __init__(self, demo_only=False):
         if demo_only:
             return  # no need to creat folders
-        self.train_mod_dir = './train_mod/'
-        self.train_sum_dir = './train_sum/'
-        self.test_res_dir = './test_res/'
-        self.test_sum_dir = './test_sum/'
+        self.train_mod_dir = '/media/wangyida/D0-P1/trained_model/3D-RecGAN++/train_mod/'
+        self.train_sum_dir = '/media/wangyida/D0-P1/trained_model/3D-RecGAN++/train_sum/'
+        self.test_res_dir = '/media/wangyida/D0-P1/trained_model/3D-RecGAN++/test_res/'
+        self.test_sum_dir = '/media/wangyida/D0-P1/trained_model/3D-RecGAN++/test_sum/'
 
         print ("re_train:", re_train)
         if os.path.exists(self.test_res_dir):
