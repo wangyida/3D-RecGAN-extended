@@ -94,7 +94,11 @@ class Network:
             layers_e = []
             layers_e.append(X)
             for i in range(1,5,1):
-                layer = tools.Ops.conv3d(layers_e[-1],k=4,out_c=c_e[i],str=s_e[i],name='e'+str(i))
+                #layer = tools.Ops.conv3d(layers_e[-1],k=4,out_c=c_e[i],str=s_e[i],name='e'+str(i))
+                if i == 1:
+                    layer = tools.Ops.conv3d(layers_e[-1],k=4,out_c=c_e[i],str=s_e[i],name='e'+str(i))
+                else:
+                    layer = tools.Ops.zigzag3d(layers_e[-1],s1x1=c_e[i]//8,e1x1=c_e[i]//2,e3x3=c_e[i]//2,name='e'+str(i))
                 layer = tools.Ops.maxpool3d(tools.Ops.xxlu(layer, label='lrelu'), k=2,s=2,pad='SAME')
                 layers_e.append(layer)
 

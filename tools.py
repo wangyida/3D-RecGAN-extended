@@ -51,7 +51,7 @@ class Data(threading.Thread):
         self.total_test_seq_batch = int(len(self.X_test_files) // self.batch_size)
 
     @staticmethod
-    def plotFromVoxels(voxels,title=''):
+    def plotFromVoxels(voxels, color='blue', title=''):
         if len(voxels.shape)>3:
             x_d = voxels.shape[0]
             y_d = voxels.shape[1]
@@ -63,7 +63,7 @@ class Data(threading.Thread):
         x, y, z = v.nonzero()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x, y, z, zdir='z', c='blue', alpha=0.5)
+        ax.scatter(x, y, z, zdir='z', c=color, alpha=0.2, edgecolors='none')
         #plt.show()
         plt.title(title)
         fig.savefig(title+'.png', transparent=True)
@@ -319,6 +319,32 @@ class Ops:
         y = tf.nn.bias_add(tf.nn.conv3d(x, w, stride, pad), b)
         Ops.variable_sum(w, name)
         return y
+
+    @staticmethod
+    def zigzag3d(x, s1x1, e1x1, e3x3, name, pad='SAME'):
+        xavier_init = tf.contrib.layers.xavier_initializer()
+        zero_init = tf.zeros_initializer()
+        zigzag = {} 
+        shape = x.get_shape() 
+        s1_weight = tf.get_variable(name + '_s1', [1, 1, 1, int(shape[-1]), s1x1], initializer=xavier_init)
+        e1_weight = tf.get_variable(name + '_e1', [1, 1, 1, s1x1, e1x1], initializer=xavier_init)
+        e3_weight = tf.get_variable(name + '_e3', [3, 3, 3, s1x1, e3x3], initializer=xavier_init)
+        b1_weight = tf.get_variable(name + '_b1', [1, 1, 1, int(shape[-1]), e1x1+e3x3], initializer=zero_init)
+        b2_weight = tf.get_variable(name + '_b2', [1, 1, 1, 2*(e1x1+e3x3), e1x1+e3x3], initializer=zero_init)
+        stride = [1, 1, 1, 1, 1]
+
+        zigzag['s1'] = tf.nn.conv3d(x, s1_weight, stride, pad)
+        zigzag['relu1'] = tf.nn.relu(zigzag['s1'] + tf.Variable(tf.constant(0.1, shape=[s1x1]))) 
+        zigzag['e1'] = tf.nn.conv3d(zigzag['relu1'], e1_weight, stride, pad)
+        zigzag['e3'] = tf.nn.conv3d(zigzag['relu1'], e3_weight, stride, pad)
+        zigzag['concat1'] = tf.concat([zigzag['e1'], zigzag['e3']], 4)
+        zigzag['b1'] = tf.nn.conv3d(x, b1_weight, stride, pad)
+        zigzag['concat2'] = tf.concat([zigzag['concat1'], zigzag['b1']], 4)
+        zigzag['relu2'] = tf.nn.relu(zigzag['concat2'] + tf.Variable(tf.constant(0.1, shape=[2*(e1x1+e3x3)])))
+
+        zigzag['b2'] = tf.nn.conv3d(zigzag['relu2'], b2_weight, stride, pad)
+        zigzag['relu3'] = tf.nn.relu(zigzag['b2'] + tf.Variable(tf.constant(0.1, shape=[e1x1+e3x3]))) 
+        return zigzag['relu3']
 
     @staticmethod
     def deconv3d(x, k, out_c, str, name,pad='SAME'):
