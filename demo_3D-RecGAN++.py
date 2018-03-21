@@ -56,8 +56,8 @@ def visualize():
     tools.Data.plotFromVoxels(x_sample, title='x_sample')
     tools.Data.plotFromVoxels(y_pred, title='y_pred')
     tools.Data.plotFromVoxels(y_true, title='y_true')
-    from matplotlib.pyplot import show
-    show()
+    # from matplotlib.pyplot import show
+    # show()
 
 #########################
 if __name__ == '__main__':

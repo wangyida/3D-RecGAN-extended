@@ -63,11 +63,12 @@ class Data(threading.Thread):
         x, y, z = v.nonzero()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x, y, z, zdir='z', c='red')
+        ax.scatter(x, y, z, zdir='z', c='blue', alpha=0.5)
         #plt.show()
         plt.title(title)
-        from matplotlib.pyplot import show
-        show(block=False)
+        fig.savefig(title+'.png', transparent=True)
+        # from matplotlib.pyplot import show
+        # show(block=False)
 
     @staticmethod
     def vox_down_single(vox, to_res):
