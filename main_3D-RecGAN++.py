@@ -187,6 +187,7 @@ class Network:
                     self.latent_loss += loss_1d
                     self.latent_loss += loss_2d
                     self.latent_loss += loss_3d
+                sum_latent_loss = tf.summary.scalar('latent_loss', self.latent_loss)
             ################################ ae loss
             Y_ = tf.reshape(self.Y, shape=[-1, vox_rex256**3])
             Y_pred_modi_ = tf.reshape(self.Y_pred_modi, shape=[-1, vox_rex256**3])
@@ -237,6 +238,9 @@ class Network:
         self.sess = tf.Session(config=config)
         self.sum_writer_train = tf.summary.FileWriter(self.train_sum_dir, self.sess.graph)
         self.sum_write_test = tf.summary.FileWriter(self.test_sum_dir)
+        
+        print ('aeu param: ' + np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables() if v.name.startswith('aeu')])*4/1024/1024)
+        print ('dis param: ' + np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables() if v.name.startswith('dis')])*4/1024/1024)
 
         path = self.train_mod_dir
         #path = './Model_released/'   # to retrain our released model
@@ -274,11 +278,11 @@ class Network:
 
                 #################### testing
                 if i%600==0:
-                    X_test_batch, Y_test_batch = data.load_X_Y_voxel_grids_test_next_batch()
+                    X_test_batch, Y_test_batch, X_test_labels_batch = data.load_X_Y_voxel_grids_test_next_batch()
 
-                    aeu_loss_t, gan_g_loss_t, gan_d_loss_no_gp_t, gan_d_loss_gp_t, Y_pred_t, sum_test = self.sess.run(
-                    [self.aeu_loss, self.gan_g_loss, self.gan_d_loss_no_gp, self.gan_d_loss_gp, self.Y_pred, self.sum_merged],
-                    feed_dict={self.X:X_test_batch, self.Y:Y_test_batch})
+                    aeu_loss_t, gan_g_loss_t, gan_d_loss_no_gp_t, gan_d_loss_gp_t, latent_loss_t, Y_pred_t, sum_test = self.sess.run(
+                    [self.aeu_loss, self.gan_g_loss, self.gan_d_loss_no_gp, self.gan_d_loss_gp, self.latent_loss, self.Y_pred, self.sum_merged],
+                    feed_dict={self.X:X_test_batch, self.Y:Y_test_batch, self.label:X_test_labels_batch})
 
                     X_test_batch=X_test_batch.astype(np.int8)
                     Y_pred_t=Y_pred_t.astype(np.float16)
@@ -290,7 +294,8 @@ class Network:
 
                     self.sum_write_test.add_summary(sum_test, epoch*total_train_batch_num+i)
                     print ('ep:',epoch, 'i:', i, 'test aeu loss:', aeu_loss_t,'gan g loss:', gan_g_loss_t,
-                           'gan d loss no gp:',gan_d_loss_no_gp_t,'gan d loss gp:',gan_d_loss_gp_t)
+                           'gan d loss no gp:',gan_d_loss_no_gp_t,'gan d loss gp:',gan_d_loss_gp_t,
+                           'latent loss:', latent_loss_t)
 
                 #### model saving
                 if i%600 == 0 and i > 0:
