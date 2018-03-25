@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 import scipy.io
 import tensorflow as tf
 import tools
@@ -56,10 +57,12 @@ def visualize():
     tools.Data.plotFromVoxels(x_sample, title='x_sample')
     tools.Data.plotFromVoxels(y_pred, title='y_pred')
     tools.Data.plotFromVoxels(y_true, title='y_true')
+    tools.Data.plotFromVoxels(y_true-y_pred, color='red', cmap=plt.get_cmap("hot"), title='y_diff')
+    #import ipdb; ipdb.set_trace()
     # from matplotlib.pyplot import show
     # show()
 
 #########################
 if __name__ == '__main__':
-    ttest_demo()
+#    ttest_demo()
     visualize()

@@ -51,7 +51,7 @@ class Data(threading.Thread):
         self.total_test_seq_batch = int(len(self.X_test_files) // self.batch_size)
 
     @staticmethod
-    def plotFromVoxels(voxels, color='blue', title=''):
+    def plotFromVoxels(voxels, color='blue', cmap=plt.get_cmap("hot"), title=''):
         if len(voxels.shape)>3:
             x_d = voxels.shape[0]
             y_d = voxels.shape[1]
@@ -63,7 +63,7 @@ class Data(threading.Thread):
         x, y, z = v.nonzero()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(x, y, z, zdir='z', c=color, alpha=0.2, edgecolors='none')
+        ax.scatter(x, y, z, zdir='z', s=2, c=color, cmap=cmap, alpha=0.5, edgecolors='none')
         #plt.show()
         plt.title(title)
         fig.savefig(title+'.png', transparent=True)
