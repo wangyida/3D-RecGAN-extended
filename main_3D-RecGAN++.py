@@ -194,15 +194,11 @@ class Network:
             nb_factors = 3
 	    # SVD
 	    St, Ut, Vt = tf.svd(Y_)
-	    
-	    # Compute reduced matrices
-	    Sk = tf.diag(St)[0:nb_factors, 0:nb_factors]
-	    Uk = Ut[:, 0:nb_factors]
-            Vk = Vt[:, 0:nb_factors]
-	    
-	    # Compute Su and Si
-	    Y_ = tf.matmul(tf.matmul(Uk, Sk), tf.transpose(Vk))
-            #import ipdb; ipdb.set_trace()
+	    Y_ = tf.matmul(
+                    tf.matmul(
+                        Ut[:, 0:nb_factors],
+                        tf.diag(St)[0:nb_factors, 0:nb_factors]),
+                    tf.transpose(Vt[:, 0:nb_factors]))
 	    
             ## End for eigen shape
             Y_pred_modi_ = tf.reshape(self.Y_pred_modi, shape=[-1, vox_rex256**3])
