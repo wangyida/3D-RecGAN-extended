@@ -232,12 +232,14 @@ class Data(threading.Thread):
         idx = random.sample(range(len(self.X_test_files)), self.batch_size)
         X_test_files_batch = []
         Y_test_files_batch = []
+        X_test_labels_batch = []
         for i in idx:
             X_test_files_batch.append(self.X_test_files[i])
             Y_test_files_batch.append(self.Y_test_files[i])
+            X_test_labels_batch.append(self.X_test_labels[i])
 
         X_test_batch, Y_test_batch = self.load_X_Y_voxel_grids(X_test_files_batch, Y_test_files_batch)
-        return X_test_batch, Y_test_batch
+        return X_test_batch, Y_test_batch, X_test_labels_batch
 
     def run(self):
         while not self.stop_queue:

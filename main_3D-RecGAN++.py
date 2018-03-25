@@ -106,7 +106,7 @@ class Network:
             [_, d1, d2, d3, cc] = layers_e[-1].get_shape()
             d1=int(d1); d2=int(d2); d3=int(d3); cc=int(cc)
             lfc = tf.reshape(layers_e[-1],[-1, int(d1)*int(d2)*int(d3)*int(cc)])
-            codes = tools.Ops.xxlu(tools.Ops.fc(lfc, out_d=2000,name='fc1'), label='relu')
+            codes = tools.Ops.xxlu(tools.Ops.fc(lfc, out_d=256,name='fc1'), label='relu')
 
         with tf.device('/gpu:'+GPU0):
             lfc = tools.Ops.xxlu(tools.Ops.fc(codes,out_d=d1*d2*d3*cc, name='fc2'), label='relu')
@@ -159,7 +159,7 @@ class Network:
         self.X = tf.placeholder(shape=[None, vox_res64, vox_res64, vox_res64, 1], dtype=tf.float32)
         self.Y = tf.placeholder(shape=[None, vox_rex256, vox_rex256, vox_rex256, 1], dtype=tf.float32)
         self.label = tf.placeholder(shape=[None], dtype=tf.int32)
-        self.nebula3d = tf.Variable(tf.truncated_normal([4, 2000]), 'nebula3d')
+        self.nebula3d = tf.Variable(tf.truncated_normal([4, 256]), 'nebula3d')
 
         with tf.variable_scope('aeu'):
             self.Y_pred, self.Y_pred_modi, self.codes = self.aeu(self.X)
@@ -170,7 +170,7 @@ class Network:
 
         with tf.device('/gpu:'+GPU0):
             ################################ embedding loss
-            loss_0d, loss_1d, loss_2d, loss_3d, _, _, self.nebula3d = sparse_ml(4, 2000, self.nebula3d, self.codes, self.label, info_type='scalar')
+            loss_0d, loss_1d, loss_2d, loss_3d, _, _, self.nebula3d = sparse_ml(4, 256, self.nebula3d, self.codes, self.label, info_type='scalar')
             metric = True
             order = 1
             if metric is True:
@@ -190,6 +190,21 @@ class Network:
                 sum_latent_loss = tf.summary.scalar('latent_loss', self.latent_loss)
             ################################ ae loss
             Y_ = tf.reshape(self.Y, shape=[-1, vox_rex256**3])
+            ## Start eigen shape
+            nb_factors = 3
+	    # SVD
+	    St, Ut, Vt = tf.svd(Y_)
+	    
+	    # Compute reduced matrices
+	    Sk = tf.diag(St)[0:nb_factors, 0:nb_factors]
+	    Uk = Ut[:, 0:nb_factors]
+            Vk = Vt[:, 0:nb_factors]
+	    
+	    # Compute Su and Si
+	    Y_ = tf.matmul(tf.matmul(Uk, Sk), tf.transpose(Vk))
+            #import ipdb; ipdb.set_trace()
+	    
+            ## End for eigen shape
             Y_pred_modi_ = tf.reshape(self.Y_pred_modi, shape=[-1, vox_rex256**3])
             w = 0.85
             self.aeu_loss = tf.reduce_mean(-tf.reduce_mean(w * Y_ * tf.log(Y_pred_modi_ + 1e-8), reduction_indices=[1]) -
@@ -239,8 +254,8 @@ class Network:
         self.sum_writer_train = tf.summary.FileWriter(self.train_sum_dir, self.sess.graph)
         self.sum_write_test = tf.summary.FileWriter(self.test_sum_dir)
         
-        print ('aeu param: ' + np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables() if v.name.startswith('aeu')])*4/1024/1024)
-        print ('dis param: ' + np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables() if v.name.startswith('dis')])*4/1024/1024)
+        print ('aeu param: ' ,np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables() if v.name.startswith('aeu')])*4/1024/1024)
+        print ('dis param: ' ,np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables() if v.name.startswith('dis')])*4/1024/1024)
 
         path = self.train_mod_dir
         #path = './Model_released/'   # to retrain our released model
