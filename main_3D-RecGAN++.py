@@ -190,22 +190,23 @@ class Network:
                 sum_latent_loss = tf.summary.scalar('latent_loss', self.latent_loss)
             ################################ ae loss
             Y_ = tf.reshape(self.Y, shape=[-1, vox_rex256**3])
-            ## Start eigen shape
-            nb_factors = 3
-	    # SVD
-	    St, Ut, Vt = tf.svd(Y_)
-	    Y_ = tf.matmul(
-                    tf.matmul(
-                        Ut[:, 0:nb_factors],
-                        tf.diag(St)[0:nb_factors, 0:nb_factors]),
-                    tf.transpose(Vt[:, 0:nb_factors]))
-	    
-            ## End for eigen shape
             Y_pred_modi_ = tf.reshape(self.Y_pred_modi, shape=[-1, vox_rex256**3])
             w = 0.85
             self.aeu_loss = tf.reduce_mean(-tf.reduce_mean(w * Y_ * tf.log(Y_pred_modi_ + 1e-8), reduction_indices=[1]) -
                                        tf.reduce_mean((1 - w) * (1 - Y_) * tf.log(1 - Y_pred_modi_ + 1e-8), reduction_indices=[1]))
             sum_aeu_loss = tf.summary.scalar('aeu_loss', self.aeu_loss)
+            ################################ eigen loss
+            nb_factors = 3
+	    # eigen shape weights
+	    St, Ut, Vt = tf.svd(Y_)
+	    Y_eigen = tf.matmul(
+                    tf.matmul(
+                        Ut[:, 0:nb_factors],
+                        tf.diag(St)[0:nb_factors, 0:nb_factors]),
+                    tf.transpose(Vt[:, 0:nb_factors]))
+	    
+            self.eigen_loss = tf.reduce_mean(-tf.reduce_mean(Y_eigen * tf.log(Y_pred_modi_ + 1e-8), reduction_indices=[1]))
+            sum_eigen_loss = tf.summary.scalar('eignen_loss', self.aeu_loss)
 
             ################################ wgan loss
             self.gan_g_loss = -tf.reduce_mean(self.XY_fake_pair)
@@ -234,6 +235,8 @@ class Network:
             aeu_var = [var for var in tf.trainable_variables() if var.name.startswith('aeu')]
             dis_var = [var for var in tf.trainable_variables() if var.name.startswith('dis')]
             self.aeu_g_optim = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.9, beta2=0.999, epsilon=1e-8).\
+                            minimize(self.aeu_gan_g_loss, var_list=aeu_var)
+            self.eigen_g_optim = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.9, beta2=0.999, epsilon=1e-8).\
                             minimize(self.aeu_gan_g_loss, var_list=aeu_var)
             self.dis_optim = tf.train.AdamOptimizer(learning_rate=0.00005, beta1=0.9, beta2=0.999, epsilon=1e-8).\
                             minimize(self.gan_d_loss_gp,var_list=dis_var)
@@ -277,28 +280,28 @@ class Network:
                 self.sess.run(self.aeu_g_optim, feed_dict={self.X:X_train_batch, self.Y:Y_train_batch, self.label:label_train_batch})
                 self.sess.run(self.latent_optim, feed_dict={self.X:X_train_batch, self.label:label_train_batch})
 
-                aeu_loss_c, gan_g_loss_c, gan_d_loss_no_gp_c, gan_d_loss_gp_c, latent_loss_c, sum_train = self.sess.run(
-                [self.aeu_loss, self.gan_g_loss, self.gan_d_loss_no_gp, self.gan_d_loss_gp, self.latent_loss, self.sum_merged],
+                aeu_loss_c, gan_g_loss_c, gan_d_loss_no_gp_c, gan_d_loss_gp_c, latent_loss_c, eigen_loss_c, sum_train = self.sess.run(
+                [self.aeu_loss, self.gan_g_loss, self.gan_d_loss_no_gp, self.gan_d_loss_gp, self.latent_loss, self.eigen_loss, self.sum_merged],
                 feed_dict={self.X:X_train_batch, self.Y:Y_train_batch, self.label:label_train_batch})
 
                 if i%200==0:
                     self.sum_writer_train.add_summary(sum_train, epoch * total_train_batch_num + i)
                 print ('ep:',epoch,'i:',i, 'train aeu loss:',aeu_loss_c, 'gan g loss:',gan_g_loss_c,
                        'gan d loss no gp:',gan_d_loss_no_gp_c,'gan d loss gp:', gan_d_loss_gp_c,
-                       'latent loss:', latent_loss_c)
+                       'latent loss:', latent_loss_c, 'eigen loss:', eigen_loss_c)
 
                 #################### testing
                 if i%600==0:
                     X_test_batch, Y_test_batch, X_test_labels_batch = data.load_X_Y_voxel_grids_test_next_batch()
 
-                    aeu_loss_t, gan_g_loss_t, gan_d_loss_no_gp_t, gan_d_loss_gp_t, latent_loss_t, Y_pred_t, sum_test = self.sess.run(
-                    [self.aeu_loss, self.gan_g_loss, self.gan_d_loss_no_gp, self.gan_d_loss_gp, self.latent_loss, self.Y_pred, self.sum_merged],
+                    aeu_loss_t, gan_g_loss_t, gan_d_loss_no_gp_t, gan_d_loss_gp_t, latent_loss_t, eigen_loss_t, Y_pred_t, Y_eigen_t, sum_test = self.sess.run(
+                    [self.aeu_loss, self.gan_g_loss, self.gan_d_loss_no_gp, self.gan_d_loss_gp, self.latent_loss, self.eigen_loss, self.Y_pred, self.Y_eigen, self.sum_merged],
                     feed_dict={self.X:X_test_batch, self.Y:Y_test_batch, self.label:X_test_labels_batch})
 
                     X_test_batch=X_test_batch.astype(np.int8)
                     Y_pred_t=Y_pred_t.astype(np.float16)
                     Y_test_batch=Y_test_batch.astype(np.int8)
-                    to_save = {'X_test':X_test_batch, 'Y_test_pred':Y_pred_t, 'Y_test_true':Y_test_batch}
+                    to_save = {'X_test':X_test_batch, 'Y_test_pred':Y_pred_t, 'Y_test_true':Y_test_batch, 'Y_test_eigen':Y_eigen_t}
 
                     scipy.io.savemat(self.test_res_dir+'X_Y_pred_'+str(epoch).zfill(2)+'_'+str(i).zfill(5)+'.mat',
                     to_save, do_compression=True)
@@ -306,7 +309,7 @@ class Network:
                     self.sum_write_test.add_summary(sum_test, epoch*total_train_batch_num+i)
                     print ('ep:',epoch, 'i:', i, 'test aeu loss:', aeu_loss_t,'gan g loss:', gan_g_loss_t,
                            'gan d loss no gp:',gan_d_loss_no_gp_t,'gan d loss gp:',gan_d_loss_gp_t,
-                           'latent loss:', latent_loss_t)
+                           'latent loss:', latent_loss_t, 'eigen_loss:', eigen_loss_t)
 
                 #### model saving
                 if i%600 == 0 and i > 0:
