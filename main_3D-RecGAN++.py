@@ -207,6 +207,7 @@ class Network:
 	    
             self.eigen_loss = tf.reduce_mean(-tf.reduce_mean(Y_eigen * tf.log(Y_pred_modi_ + 1e-8), reduction_indices=[1]))
             sum_eigen_loss = tf.summary.scalar('eignen_loss', self.aeu_loss)
+            self.Y_eigen = tf.reshape(Y_eigen, shape=[-1, vox_rex256, vox_rex256, vox_rex256, 1])
 
             ################################ wgan loss
             self.gan_g_loss = -tf.reduce_mean(self.XY_fake_pair)
@@ -248,6 +249,7 @@ class Network:
         self.saver = tf.train.Saver(max_to_keep=1)
         config = tf.ConfigProto(allow_soft_placement=True)
         config.gpu_options.visible_device_list = GPU0
+        config.gpu_options.allow_growth = True
 
         self.sess = tf.Session(config=config)
         self.sum_writer_train = tf.summary.FileWriter(self.train_sum_dir, self.sess.graph)
