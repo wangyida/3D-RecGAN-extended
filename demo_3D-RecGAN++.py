@@ -29,16 +29,20 @@ def ttest_demo():
 
         X = tf.get_default_graph().get_tensor_by_name("Placeholder:0")
         Y_pred = tf.get_default_graph().get_tensor_by_name("aeu/Sigmoid:0")
+        Y_eigen = tf.get_default_graph().get_tensor_by_name("aeu/Sigmoid:0")
+        import ipdb; ipdb.set_trace()
         x_sample = x_sample.reshape(1, 64, 64, 64, 1)
         y_pred = sess.run(Y_pred, feed_dict={X: x_sample})
+        y_eigen = sess.run(Y_eigen, feed_dict={X: x_sample})
 
     ###### save result
     x_sample = x_sample.reshape(64, 64, 64)
     y_pred = y_pred.reshape(256, 256, 256)
+    y_eigen = y_eigen.reshape(256, 256, 256)
     x_sample = x_sample.astype(np.int8)
     y_pred = y_pred.astype(np.float16)
     y_true = y_true.astype(np.int8)
-    to_save = {'X_test': x_sample, 'Y_test_pred': y_pred, 'Y_test_true': y_true}
+    to_save = {'X_test': x_sample, 'Y_test_pred': y_pred, 'Y_test_true': y_true, 'Y_test_eigen': y_eigen}
     scipy.io.savemat('demo_result.mat', to_save, do_compression=True)
     print ('results saved.')
 
@@ -49,6 +53,7 @@ def visualize():
     x_sample = mat['X_test']
     y_pred = mat['Y_test_pred']
     y_true = mat['Y_test_true']
+    y_eigen = mat['Y_test_eigen']
 
     ######  if the GPU serve is able to visualize, otherwise comment the following lines
     th = 0.5
@@ -56,6 +61,7 @@ def visualize():
     y_pred[y_pred < th] = 0
     tools.Data.plotFromVoxels(x_sample, title='x_sample')
     tools.Data.plotFromVoxels(y_pred, title='y_pred')
+    tools.Data.plotFromVoxels(y_eigen, title='y_eigen')
     tools.Data.plotFromVoxels(y_true, title='y_true')
     tools.Data.plotFromVoxels(y_true-y_pred, color='red', cmap=plt.get_cmap("hot"), title='y_diff')
     #import ipdb; ipdb.set_trace()
@@ -64,5 +70,5 @@ def visualize():
 
 #########################
 if __name__ == '__main__':
-#    ttest_demo()
+    ttest_demo()
     visualize()

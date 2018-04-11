@@ -155,6 +155,19 @@ class Network:
             y = tf.reshape(layers_d[-1],[-1,d1*d2*d3*cc])
         return tf.nn.sigmoid(y)
 
+    def skeleton(self, Y):
+        with tf.device('/gpu:'+GPU0):
+            nb_factors = 3
+            # eigen shape weights
+            Y_ = tf.reshape(Y, shape=[-1, vox_rex256**3])
+            St, Ut, Vt = tf.svd(Y_)
+            Y_eigen = tf.matmul(
+                    tf.matmul(
+                        Ut[:, 0:nb_factors],
+                        tf.diag(St)[0:nb_factors, 0:nb_factors]),
+                    tf.transpose(Vt[:, 0:nb_factors]))
+        return tf.reshape(Y_eigen, shape=[-1, vox_rex256, vox_rex256, vox_rex256, 1])
+
     def build_graph(self):
         self.X = tf.placeholder(shape=[None, vox_res64, vox_res64, vox_res64, 1], dtype=tf.float32)
         self.Y = tf.placeholder(shape=[None, vox_rex256, vox_rex256, vox_rex256, 1], dtype=tf.float32)
@@ -163,6 +176,8 @@ class Network:
 
         with tf.variable_scope('aeu'):
             self.Y_pred, self.Y_pred_modi, self.codes = self.aeu(self.X)
+        with tf.variable_scope('skeleton'):
+            self.Y_eigen = self.skeleton(self.Y)
         with tf.variable_scope('dis'):
             self.XY_real_pair = self.dis(self.X, self.Y)
         with tf.variable_scope('dis',reuse=True):
@@ -188,6 +203,7 @@ class Network:
                     self.latent_loss += loss_2d
                     self.latent_loss += loss_3d
                 sum_latent_loss = tf.summary.scalar('latent_loss', self.latent_loss)
+
             ################################ ae loss
             Y_ = tf.reshape(self.Y, shape=[-1, vox_rex256**3])
             Y_pred_modi_ = tf.reshape(self.Y_pred_modi, shape=[-1, vox_rex256**3])
@@ -195,19 +211,11 @@ class Network:
             self.aeu_loss = tf.reduce_mean(-tf.reduce_mean(w * Y_ * tf.log(Y_pred_modi_ + 1e-8), reduction_indices=[1]) -
                                        tf.reduce_mean((1 - w) * (1 - Y_) * tf.log(1 - Y_pred_modi_ + 1e-8), reduction_indices=[1]))
             sum_aeu_loss = tf.summary.scalar('aeu_loss', self.aeu_loss)
+
             ################################ eigen loss
-            nb_factors = 3
-	    # eigen shape weights
-	    St, Ut, Vt = tf.svd(Y_)
-	    Y_eigen = tf.matmul(
-                    tf.matmul(
-                        Ut[:, 0:nb_factors],
-                        tf.diag(St)[0:nb_factors, 0:nb_factors]),
-                    tf.transpose(Vt[:, 0:nb_factors]))
-	    
+            Y_eigen_ = tf.reshape(self.Y_eigen, shape=[-1, vox_rex256**3])
             self.eigen_loss = tf.reduce_mean(-tf.reduce_mean(Y_eigen * tf.log(Y_pred_modi_ + 1e-8), reduction_indices=[1]))
-            sum_eigen_loss = tf.summary.scalar('eignen_loss', self.aeu_loss)
-            self.Y_eigen = tf.reshape(Y_eigen, shape=[-1, vox_rex256, vox_rex256, vox_rex256, 1])
+            sum_eigen_loss = tf.summary.scalar('eignen_loss', self.eigen_loss)
 
             ################################ wgan loss
             self.gan_g_loss = -tf.reduce_mean(self.XY_fake_pair)
