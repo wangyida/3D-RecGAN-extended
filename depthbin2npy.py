@@ -8,6 +8,7 @@ import time
 from scipy import misc
 import os
 import argparse
+from progressbar import ProgressBar
 
 def bin2array(file):
     start_time = time.time()
@@ -78,7 +79,7 @@ if __name__=="__main__":
     parser.add_argument('-t',
         action="store",
         dest="dir_tar",
-        default="/media/wangyida/D0-P1/database/SUNCGtrain_3001_5000_devox",
+        default="/media/wangyida/D0-P1/database/SUNCGtrain_3001_5000_depvox",
         help='for storing generated npy')
     parser.print_help()
     results = parser.parse_args()
@@ -89,12 +90,12 @@ if __name__=="__main__":
     dir_tar=results.dir_tar
     
     # scan for depth files
-    dir_depth = dir_tar + 'depth'
+    dir_depth = dir_tar + '_depth'
     scan_png = ScanFile(directory=dir_src, postfix='.png')
     files_png = scan_png.scan_files()
     
     # scan for semantic voxel files 
-    dir_voxel = dir_tar + 'voxel'
+    dir_voxel = dir_tar + '_voxel'
     scan_bin = ScanFile(directory=dir_src, postfix='.bin')
     files_bin = scan_bin.scan_files()
 
@@ -106,15 +107,18 @@ if __name__=="__main__":
         os.mkdir(dir_depth) 
         os.mkdir(dir_voxel) 
 
+    
+    pbar1 = ProgressBar()
     # save depth as npy files
-    for file_png in files_png:
+    for file_png in pbar1(files_png):
         depth = png2array(file=file_png)
         name_start = int(file_png.rfind('/'))
         name_end = int(file_png.find('.', name_start))
         np.save(dir_depth + file_png[name_start: name_end] + '.npy', depth)
-
+    
     # save voxel as npy files
-    for file_bin in files_bin:
+    pbar2 = ProgressBar()
+    for file_bin in pbar2(files_bin):
         voxel = bin2array(file=file_bin)
         name_start = int(file_bin.rfind('/'))
         name_end = int(file_bin.find('.', name_start))
