@@ -38,6 +38,7 @@ class Data(threading.Thread):
 
         self.queue_train = queue.Queue(3)
         self.stop_queue = False
+        import ipdb; ipdb.set_trace()
 
         self.X_train_files, self.Y_train_files = self.load_X_Y_files_paths_all( self.train_names,label='train')
         self.X_test_files, self.Y_test_files = self.load_X_Y_files_paths_all(self.test_names, label='test')

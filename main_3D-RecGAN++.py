@@ -16,6 +16,7 @@ config={}
 config['batch_size']=batch_size
 config['vox_res_x'] = vox_res64
 config['vox_res_y'] = vox_rex256
+"""
 config['train_names']=['P1_02828884_bench','P1_03001627_chair','P1_04256520_coach', 'P1_04379243_table']
 for name in config['train_names']:
     config['X_train_'+name] = './Data_sample/'+name+'/train_25d_vox256/'
@@ -25,6 +26,16 @@ config['test_names']=['P1_02828884_bench','P1_03001627_chair','P1_04256520_coach
 for name in config['test_names']:
     config['X_test_'+name]= './Data_sample/'+name+'/test_25d_vox256/'
     config['Y_test_'+name]= './Data_sample/'+name+'/test_3d_vox256/'
+"""
+config['train_names']=['SUNCGtrain_5001_7000','SUNCGtrain_5001_7000']
+for name in config['train_names']:
+    config['X_train_'+name] = '/media/wangyida/D0-P1/database/'+name+'_npy_depth/'
+    config['Y_train_'+name] = '/media/wangyida/D0-P1/database/'+name+'_npy_voxel/'
+
+config['test_names']=['SUNCGtest_49700_49884']
+for name in config['test_names']:
+    config['X_test_'+name]= '/media/wangyida/D0-P1/database/depthbin_NYU_SUNCG/'+name+'_depth/'
+    config['Y_test_'+name]= '/media/wangyida/D0-P1/database/depthbin_NYU_SUNCG/'+name+'_voxel/'
 #########################
 
 class Network:
