@@ -1,13 +1,21 @@
 import matplotlib.pyplot as plt
-get_ipython().magic(u'matplotlib inline')
-
 import numpy as np
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
+import argparse
 
 def normalize(arr):
     arr_min = np.min(arr)
     return (arr-arr_min)/(np.max(arr)-arr_min)
+
+def show_histogram(values):
+    n, bins, patches = plt.hist(values.reshape(-1), 50, normed=1)
+    bin_centers = 0.5 * (bins[:-1] + bins[1:])
+
+    for c, p in zip(normalize(bin_centers), patches):
+        plt.setp(p, 'facecolor', cm.viridis(c))
+
+    plt.show()
 
 def explode(data):
     shape_arr = np.array(data.shape)
@@ -22,6 +30,10 @@ def expand_coordinates(indices):
     y[:, 1::2, :] += 1
     z[:, :, 1::2] += 1
     return x, y, z
+
+def scale_by(arr, fac):
+    mean = np.mean(arr)
+    return (arr-mean)*fac + mean
 
 def plot_cube(cube, angle=320):
     cube = normalize(cube)
@@ -44,58 +56,21 @@ def plot_cube(cube, angle=320):
     ax.voxels(x, y, z, filled, facecolors=facecolors)
     plt.show()
 
-# A few notes on this implementation:
-# 
-#  * Instead of colors as strings, I'm using a 4D colors array, where the last dimension (of size 4) holds the red, green, blue, and alpha (transparency) values. Doing `facecolors[:,:,:,-1] = cube` makes the alpha equal to the voxel value.
-#  * I'm still using Viridis, the default color map. You can use [any map you like](https://matplotlib.org/users/colormaps.html) that's supported by matplotlib, by changing the call to `cm.viridis`.
-#  * I'm setting some axis limits to make sure that all the plots are on the same scales, even if I truncate the image to show a cross-section.
-#  * You can add a call to `ax.set_axis_off()` if you want to remove the background and axis ticks.
-# 
-# Oh, and if you were wondering, this is where `explode` handling 4D arrays comes in handy.
-# 
-# 
-# ## Results
-# 
-# So first, a cut view of the skull:
+if __name__=="__main__":
 
-# In[ ]:
+    parser = argparse.ArgumentParser(description='Parser added')
+    parser.add_argument('-s',
+        action="store",
+        dest="dir_src",
+        default="/media/wangyida/D0-P1/database/SUNCGtrain_3001_5000",
+        help='folder of paired depth and voxel')
+    parser.print_help()
+    results = parser.parse_args()
 
-
-plot_cube(resized[:35,::-1,:25])
-
-
-# (I'm plotting the y-axis backwards so that the eyes are in front).
-# 
-# A view from the back, cutting through in diagonal:
-
-# In[ ]:
-
-
-cube = np.copy(resized)
-
-for x in range(0, IMG_DIM):
-    for y in range(0, IMG_DIM):
-        for z in range(max(x-y+5, 0), IMG_DIM):
-            cube[x, y, z] = 0
-plot_cube(cube, angle=200)
-
-
-# And a full view, where you can see the nasal cavity and make out the eye sockets at the very bottom:
-
-IMG_DIM = 50
-plot_cube(checkVox[:,::-1,:])
-
-
-# I hope you enjoyed this tutorial! Feel free to drop me suggestions for improvements, questions, or other random notes below. You can also look at [`voxel`'s documentation](https://matplotlib.org/api/_as_gen/mpl_toolkits.mplot3d.axes3d.Axes3D.html#mpl_toolkits.mplot3d.axes3d.Axes3D.voxels) for more details.
-# 
-# Here are the library versions I've used for this tutorial:
-# 
-#     matplotlib==2.1.0
-#     nibabel==2.2.1
-#     numpy==1.13.3
-#     requests==2.18.4
-#     scikit-image==0.13.1
-# 
-# You can also [download the notebook](/content-static/matplotlib-3d/matplotlib-3d.ipynb).
-# 
-# [^1]: Büchel, Christian, and K. J. Friston. "Modulation of connectivity in visual pathways by attention: cortical interactions evaluated with structural equation modelling and fMRI." _Cerebral cortex (New York, NY: 1991)_ 7.8 (1997): 768-778.
+    arr = np.load(results.dir_src)
+    show_histogram(arr)
+    transformed = np.clip(scale_by(np.clip(normalize(arr)-0.1, 0, 1)**0.4, 2)-0.1, 0, 1)
+    from skimage.transform import resize
+    IMG_DIM = 50
+    resized = resize(transformed, (IMG_DIM, IMG_DIM, IMG_DIM), mode='constant')
+    plot_cube(resized[:,::-1,:])
