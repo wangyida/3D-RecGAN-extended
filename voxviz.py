@@ -13,7 +13,7 @@ def show_histogram(values):
     bin_centers = 0.5 * (bins[:-1] + bins[1:])
 
     for c, p in zip(normalize(bin_centers), patches):
-        plt.setp(p, 'facecolor', cm.viridis(c))
+        plt.setp(p, 'facecolor', cm.gist_rainbow(c))
 
     plt.show()
 
@@ -62,15 +62,14 @@ if __name__=="__main__":
     parser.add_argument('-s',
         action="store",
         dest="dir_src",
-        default="/media/wangyida/D0-P1/database/SUNCGtrain_3001_5000",
-        help='folder of paired depth and voxel')
+        default="./SUNCGtrain_3001_5000",
+        help='npy file')
     parser.print_help()
     results = parser.parse_args()
 
-    arr = np.load(results.dir_src)
-    show_histogram(arr)
+    arr = np.load(results.dir_src)[1,:]
+    #show_histogram(arr)
     transformed = np.clip(scale_by(np.clip(normalize(arr)-0.1, 0, 1)**0.4, 2)-0.1, 0, 1)
-    from skimage.transform import resize
     IMG_DIM = 50
     resized = resize(transformed, (IMG_DIM, IMG_DIM, IMG_DIM), mode='constant')
     plot_cube(resized[:,::-1,:])
