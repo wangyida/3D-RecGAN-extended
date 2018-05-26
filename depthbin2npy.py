@@ -31,12 +31,14 @@ def bin2array(file):
             checkVox = [i for (val, repeat) in zip(checkVoxVal,checkVoxIter) for i in np.tile(val, repeat)]
             # print('checkVox shape is {}'.format(len(checkVox)))
             checkVox = np.reshape(checkVox, (240,144,240))
+            checkVox = block_reduce(checkVox, block_size=(3, 3, 3), func=np.max)
     f.close()
     # print "reading voxel file takes {} mins".format((time.time()-start_time)/60)
     return checkVox
 
 def png2array(file):
     image = misc.imread(file)
+    image = misc.imresize(image, 50)
     return image
 
 class ScanFile(object):
